@@ -67,6 +67,9 @@ class Ui_MainWindow(object):
         self.pushButton_3 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_3.setGeometry(QtCore.QRect(0, 260, 120, 60))
         self.pushButton_3.setObjectName("pushButton_3")
+        self.pushButton_3.clicked.connect(self.getScalingInput)
+
+
         self.pushButton_4 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_4.setGeometry(QtCore.QRect(0, 380, 120, 60))
         self.pushButton_4.setObjectName("pushButton_4")
@@ -91,7 +94,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.pushButton.setText(_translate("MainWindow", "Open image"))
         self.pushButton_2.setText(_translate("MainWindow", "Rotation"))
-        self.pushButton_3.setText(_translate("MainWindow", "PushButton"))
+        self.pushButton_3.setText(_translate("MainWindow", "Scaling"))
         self.pushButton_4.setText(_translate("MainWindow", "PushButton"))
         self.pushButton_5.setText(_translate("MainWindow", "PushButton"))
 
@@ -136,7 +139,7 @@ class Ui_MainWindow(object):
 
     def openimage(self):
         global fileName
-        QMessageBox.question(self, '提醒', '选择图片时要是绝对路径(且全英文路径)',
+        QMessageBox.question(self, 'Remind', 'Please choose one image from your computer',
                              QMessageBox.Ok)
         imgName, imgType = QFileDialog.getOpenFileName(self, "image.jpg", os.getcwd())
         jpg = QtGui.QPixmap(imgName).scaled(self.label.width(), self.label.height())
@@ -144,6 +147,33 @@ class Ui_MainWindow(object):
         self.label2.setPixmap(QPixmap(jpg))
         fileName = imgName
         originalImage = cv2.imread(imgName)
+
+    def getScalingInput(self):
+        global fileName
+        img_before_scaling = cv2.imread(fileName)
+
+        img_before_scaling = cv2.resize(img_before_scaling, (300, 400), interpolation=cv2.INTER_NEAREST)
+        img_before_scaling = cv2.cvtColor(img_before_scaling, cv2.COLOR_BGR2RGB)
+
+        scaling_size_input, ok = QInputDialog.getText(self, "yes", "No",
+                                                       QtWidgets.QLineEdit.Normal)
+        scaling_size_input = float(scaling_size_input)
+
+        dst_scaling = cv2.resize(img_before_scaling, None, fx=scaling_size_input, fy=scaling_size_input, interpolation=cv2.INTER_NEAREST)
+        width =dst_scaling.shape[1]
+        height = dst_scaling.shape[0]
+        print(width, height)
+
+        self.label2.setFixedSize(width, height)
+        size = (int(self.label2.width()), int(self.label2.height()))
+        print(size)
+
+        self.QtImg = QtGui.QImage(dst_scaling.data,
+                                  dst_scaling.shape[1],
+                                  dst_scaling.shape[0],
+                                  QtGui.QImage.Format_RGB888)
+        self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+
 
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
