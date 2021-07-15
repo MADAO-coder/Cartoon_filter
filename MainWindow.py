@@ -10,6 +10,7 @@ import os
 import sys
 import time
 
+import null as null
 from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog
 import cv2
 import numpy as np
@@ -22,6 +23,7 @@ from PyQt5.QtCore import *
 
 fileName = ''
 rotation_angle = ''
+resultImage = null
 
 
 class Ui_MainWindow(object):
@@ -73,9 +75,12 @@ class Ui_MainWindow(object):
         self.pushButton_4 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_4.setGeometry(QtCore.QRect(0, 380, 120, 60))
         self.pushButton_4.setObjectName("pushButton_4")
+        self.pushButton_4.clicked.connect(self.saveImage)
+
         self.pushButton_5 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_5.setGeometry(QtCore.QRect(0, 490, 121, 60))
         self.pushButton_5.setObjectName("pushButton_5")
+        self.pushButton_5.clicked.connect(self.CartoonFilter)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -117,6 +122,7 @@ class Ui_MainWindow(object):
     def rotation(self):
         global fileName
         global rotation_angle
+        global resultImage
 
         print(rotation_angle)
 
@@ -125,11 +131,14 @@ class Ui_MainWindow(object):
         img_before_rotation = cv2.imread(fileName)
         h, w = img_before_rotation.shape[:2]
 
-        M = cv2.getRotationMatrix2D((w / 2, h / 2), rotation_angle, 1)  # 旋转  通过getRotationMatrix2D得到图像旋转后的矩阵
+        M = cv2.getRotationMatrix2D((w / 2, h / 2), rotation_angle, 1)
 
-        dst = cv2.warpAffine(img_before_rotation, M, (w, h))  # 通过仿射变换函数warpAffine将矩阵转化为图像
-        size = (int(self.label2.width()), int(self.label2.height()))  # 获得控件lable的尺寸
-        shrink = cv2.resize(dst, size, interpolation=cv2.INTER_AREA)  # 对图像进行缩放
+        dst = cv2.warpAffine(img_before_rotation, M, (w, h))
+        print(dst)
+
+        size = (int(self.label2.width()), int(self.label2.height()))
+
+        shrink = cv2.resize(dst, size, interpolation=cv2.INTER_AREA)
         shrink = cv2.cvtColor(shrink, cv2.COLOR_BGR2RGB)
         self.QtImg = QtGui.QImage(shrink.data,
                                   shrink.shape[1],
@@ -150,16 +159,16 @@ class Ui_MainWindow(object):
 
     def getScalingInput(self):
         global fileName
-        img_before_scaling = cv2.imread(fileName)
+        img_before_scaling = cv2.imread(fileName, 1)
 
-        img_before_scaling = cv2.resize(img_before_scaling, (300, 400), interpolation=cv2.INTER_NEAREST)
+        img_before_scaling = cv2.resize(img_before_scaling, (300, 400), interpolation=cv2.INTER_CUBIC)
         img_before_scaling = cv2.cvtColor(img_before_scaling, cv2.COLOR_BGR2RGB)
 
         scaling_size_input, ok = QInputDialog.getText(self, "yes", "No",
                                                        QtWidgets.QLineEdit.Normal)
         scaling_size_input = float(scaling_size_input)
 
-        dst_scaling = cv2.resize(img_before_scaling, None, fx=scaling_size_input, fy=scaling_size_input, interpolation=cv2.INTER_NEAREST)
+        dst_scaling = cv2.resize(img_before_scaling, None, fx= scaling_size_input, fy= scaling_size_input, interpolation=cv2.INTER_CUBIC)
         width =dst_scaling.shape[1]
         height = dst_scaling.shape[0]
         print(width, height)
@@ -171,8 +180,54 @@ class Ui_MainWindow(object):
         self.QtImg = QtGui.QImage(dst_scaling.data,
                                   dst_scaling.shape[1],
                                   dst_scaling.shape[0],
+                                  QImage.Format_RGB888)
+        self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+
+    def CartoonFilter(self):
+
+        global fileName
+        img = cv2.imread(fileName)
+        data = np.float32(img).reshape((-1, 3))
+
+        # Determine criteria
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
+
+        # Implementing K-Means
+        ret, label, center = cv2.kmeans(data, 9, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        center = np.uint8(center)
+        result = center[label.flatten()]
+        result = result.reshape(img.shape)
+
+        blurred = cv2.bilateralFilter(result, d=7,
+                                      sigmaColor=200, sigmaSpace=200)
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray_blur = cv2.medianBlur(gray, 7)
+        edges = cv2.adaptiveThreshold(gray_blur, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 7,
+                                      7)
+
+        cartoon = cv2.bitwise_and(blurred, blurred, mask=edges)
+
+        t1,dst1 = cv2.threshold(cartoon, 127, 255, cv2.THRESH_BINARY)
+
+
+        size = (int(self.label2.width()), int(self.label2.height()))
+        shrink = cv2.resize(dst1, size, interpolation=cv2.INTER_AREA)
+        shrink = cv2.cvtColor(shrink, cv2.COLOR_BGR2RGB)
+        self.QtImg = QtGui.QImage(shrink.data,
+                                  shrink.shape[1],
+                                  shrink.shape[0],
                                   QtGui.QImage.Format_RGB888)
         self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+
+    def saveImage(self):
+        global resultImage
+        try:
+            self.dir_path = QFileDialog.getExistingDirectory(None, "Choose path", os.getcwd())
+            print(resultImage)
+            cv2.imwrite(self.dir_path, resultImage)
+        except Exception as e:
+            print(e)
 
 
 
