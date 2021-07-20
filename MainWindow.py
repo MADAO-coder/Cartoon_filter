@@ -24,7 +24,7 @@ from PyQt5.QtCore import *
 fileName = ''
 rotation_angle = ''
 resultImage = np.zeros((100,100,3), dtype=np.uint8)
-
+global pt1, pt2
 
 # Class for GUI
 class Ui_MainWindow(object):
@@ -82,7 +82,7 @@ class Ui_MainWindow(object):
         self.pushButton_4 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_4.setGeometry(QtCore.QRect(0, 380, 120, 60))
         self.pushButton_4.setObjectName("pushButton_4")
-        self.pushButton_4.clicked.connect(self.saveImage)
+        self.pushButton_4.clicked.connect(self.image_crop)
 
         # Set up button for saving the output image
         self.pushButton_5 = QtWidgets.QPushButton(self.centralwidget)
@@ -93,19 +93,9 @@ class Ui_MainWindow(object):
 
         self.pushButton_cropLeft = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_cropLeft.setGeometry(QtCore.QRect(200, 720, 120, 60))
-        self.pushButton_cropLeft.setObjectName("crop left")
+        self.pushButton_cropLeft.setObjectName("Save image")
+        self.pushButton_cropLeft.clicked.connect(self.saveImage)
 
-        self.pushButton_cropRight = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_cropRight.setGeometry(QtCore.QRect(380, 720, 120, 60))
-        self.pushButton_cropRight.setObjectName("crop right")
-
-        self.pushButton_cropUp = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_cropUp.setGeometry(QtCore.QRect(560, 720, 120, 60))
-        self.pushButton_cropUp.setObjectName("crop up")
-
-        self.pushButton_cropDown = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_cropDown.setGeometry(QtCore.QRect(740, 720, 120, 60))
-        self.pushButton_cropDown.setObjectName("crop down")
 
         # Initialize the main window for GUI
         MainWindow.setCentralWidget(self.centralwidget)
@@ -127,12 +117,10 @@ class Ui_MainWindow(object):
         self.pushButton.setText(_translate("MainWindow", "Open image"))
         self.pushButton_2.setText(_translate("MainWindow", "Rotation"))
         self.pushButton_3.setText(_translate("MainWindow", "Scaling"))
-        self.pushButton_4.setText(_translate("MainWindow", "Save image"))
+        self.pushButton_4.setText(_translate("MainWindow", "Image crop"))
         self.pushButton_5.setText(_translate("MainWindow", "Cartoon filter"))
-        self.pushButton_cropLeft.setText(_translate("MainWindow", "crop left"))
-        self.pushButton_cropRight.setText(_translate("MainWindow", "crop right"))
-        self.pushButton_cropUp.setText(_translate("MainWindow", "crop up"))
-        self.pushButton_cropDown.setText(_translate("MainWindow", "crop down"))
+        self.pushButton_cropLeft.setText(_translate("MainWindow", "Save image"))
+
 
     # Function get the input of rotation angle
     def getRotationAngle(self):
@@ -283,14 +271,6 @@ class Ui_MainWindow(object):
             # show the image at label2
             self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
 
-
-    def imageCut(self):
-        global fileName
-        img_before_cut = cv2.imread(fileName, 1)
-        row = len(img_before_cut)
-        col = len(img_before_cut[0])
-        matrix_down = np.float32([[1, 0, 0], [0, 1, -50]])
-
     def switchImage(self):
         global resultImage
         global fileName
@@ -316,7 +296,36 @@ class Ui_MainWindow(object):
         except Exception as e:
             print(e)
 
+    def on_mouse(self, event, x, y, flags, param):
+        global pt1, pt2, resultImage
+        img2 = self.get_original_image()
+        if event == cv2.EVENT_LBUTTONDOWN:
+            pt1 = (x, y)
+            cv2.circle(img2, pt1, 10, (0, 255, 0), 5)
+            cv2.imshow('image', img2)
+        elif event == cv2.EVENT_MOUSEMOVE and (flags & cv2.EVENT_FLAG_LBUTTON):
+            cv2.rectangle(img2, pt1, (x, y), (255, 0, 0), 5)
+            cv2.imshow('image', img2)
+        elif event == cv2.EVENT_LBUTTONUP:
+            pt2 = (x, y)
+            cv2.rectangle(img2, pt1, pt2, (0, 0, 255), 5)
+            cv2.imshow('image', img2)
+            min_x = min(pt1[0], pt2[0])
+            min_y = min(pt1[1], pt2[1])
+            width = abs(pt1[0] - pt2[0])
+            height = abs(pt1[1] - pt2[1])
+            cut_img = self.get_original_image()[min_y:min_y + height, min_x:min_x + width]
+            resultImage = cut_img
+            self.saveImage()
 
+    def image_crop(self):
+        # Get the original image
+        originalImage = self.get_original_image()
+        # Set mouse click window
+        cv2.setMouseCallback('image', self.on_mouse)
+        # Show image
+        cv2.imshow('image', originalImage)
+        cv2.waitKey(0)
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
@@ -329,3 +338,4 @@ if __name__ == '__main__':
     w = MainWindow()
     w.show()
     sys.exit(app.exec_())
+
