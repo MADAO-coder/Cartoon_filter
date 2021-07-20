@@ -22,7 +22,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 fileName = ''
-rotation_angle = ''
 resultImage = np.zeros((100,100,3), dtype=np.uint8)
 global pt1, pt2
 
@@ -32,7 +31,7 @@ class Ui_MainWindow(object):
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1890, 871)
+        MainWindow.resize(1200, 871)
 
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -88,7 +87,7 @@ class Ui_MainWindow(object):
         self.pushButton_5 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_5.setGeometry(QtCore.QRect(0, 490, 120, 60))
         self.pushButton_5.setObjectName("pushButton_5")
-        self.pushButton_5.clicked.connect(self.CartoonFilter)
+        self.pushButton_5.clicked.connect(self.cartoon_filter)
 
 
         self.pushButton_cropLeft = QtWidgets.QPushButton(self.centralwidget)
@@ -124,19 +123,25 @@ class Ui_MainWindow(object):
 
     # Function get the input of rotation angle
     def getRotationAngle(self):
-        global rotation_angle
         global fileName
 
-        # Create a input box and user can choose their input angle
-        rotation_angle_input, ok = QInputDialog.getText(self, "Rotation", "Please input angle you want to rotate (such as 30)",
-                                                       QtWidgets.QLineEdit.Normal)
+        # Read the original image by reading fileName
+        img_before_rotation = self.get_original_image()
+
         # If users click ok, perform rotation based on their input angle
-        if ok:
-            rotation_angle = rotation_angle_input
-            self.rotation()
+        if img_before_rotation is not None:
+            # Create a input box and user can choose their input angle
+            rotation_angle_input, ok = QInputDialog.getInt(self, "Rotation",
+                                                           "Please input angle you want to rotate (such as 30)",
+                                                           QtWidgets.QLineEdit.Normal)
+            if ok:
+                self.rotation(img_before_rotation, rotation_angle_input)
+        else:
+            self.wrong_msg_box("Empty image", "Please upload image first!")
+
     # Function to perform rotation
-    def rotation(self):
-        global rotation_angle
+    def rotation(self, img_before_rotation, rotation_angle):
+
         global resultImage
 
         # change the rotation_angle from input to string
@@ -145,8 +150,6 @@ class Ui_MainWindow(object):
         # if the input angle between 0 to 360, perform rotation
         if rotation_angle > 0 and rotation_angle<360:
 
-            # Read the original image by reading fileName
-            img_before_rotation = self.get_original_image()
 
             h, w = img_before_rotation.shape[:2] # Find height and width of the original image
             M = cv2.getRotationMatrix2D((w / 2, h / 2), rotation_angle, 1) # Find the center position of original image
@@ -157,7 +160,7 @@ class Ui_MainWindow(object):
             # Set the output image at label2
             self.set_img_to_label(dst, "label2")
         else:
-            print("Please input rotation angle between 0 and 360")
+            self.wrong_msg_box("invalid input", "Please input number between 1-359")
 
     # Function to open the local image
     def openimage(self):
@@ -178,23 +181,33 @@ class Ui_MainWindow(object):
     # Function to implement scaling to original image
     def getScalingInput(self):
 
-        # Get the original image
         img_before_scaling = self.get_original_image()
+        print(img_before_scaling)
+        if img_before_scaling is not None:
 
-        # Use resize function to make the original image fill the label size
-        img_before_scaling = cv2.resize(img_before_scaling, (300, 400), interpolation=cv2.INTER_CUBIC)
-        # Convert image to RGB
-        img_before_scaling = cv2.cvtColor(img_before_scaling, cv2.COLOR_BGR2RGB)
+            # Retrieve users' input (support scale from 0.2 times to 2.0 times of original image)
+            scaling_size_input, ok = QInputDialog.getItem(self, "Scaling",
+                                                          "Please input scaling multiples you want (2 is double image)",
+                                                          ("0.2", "0.4", "0.8", "1.0", "1.2", "1.4", "1.6", "1.8", "2.0")
+                                                          , 0, False)
 
-        # Retrieve users' input
-        scaling_size_input, ok = QInputDialog.getText(self, "Scaling", "Please input scaling multiples you want (2 is double image)",
-                                                     QtWidgets.QLineEdit.Normal)
+            # Once users click ok, image will be scaled based on users input, for example 2 means double the image
+            if ok:
+                # Get the original image
 
-        # Once users click ok, image will be scaled based on users input, for example 2 means double the image
-        if ok:
-            scaling_size_input = float(scaling_size_input)
-            dst_scaling = cv2.resize(img_before_scaling, None, fx= scaling_size_input, fy= scaling_size_input, interpolation=cv2.INTER_CUBIC)
-            self.set_img_to_label(dst_scaling, "scaling")
+                # Use resize function to make the original image fill the label size
+                img_before_scaling = cv2.resize(img_before_scaling, (300, 400), interpolation=cv2.INTER_CUBIC)
+                # Convert image to RGB
+                img_before_scaling = cv2.cvtColor(img_before_scaling, cv2.COLOR_BGR2RGB)
+
+                # Covert the user's input from string to float
+                scaling_size_input = float(scaling_size_input)
+
+                # resize the image based on user's input
+                dst_scaling = cv2.resize(img_before_scaling, None, fx= scaling_size_input, fy= scaling_size_input, interpolation=cv2.INTER_CUBIC)
+                self.set_img_to_label(dst_scaling, "scaling")
+        else:
+            self.wrong_msg_box("Empty image", "Please upload image first!")
 
     # Function to retrieve the original image based on file name
     def get_original_image(self):
@@ -206,33 +219,37 @@ class Ui_MainWindow(object):
         self.label2.setFixedSize(300, 400)
 
     # Function to implement cartoon filter
-    def CartoonFilter(self):
+    def cartoon_filter(self):
         global resultImage
         global fileName
         img = cv2.imread(fileName)
-        data = np.float32(img).reshape((-1, 3))
 
-        # Determine criteria
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
+        if img is not None :
+            data = np.float32(img).reshape((-1, 3))
 
-        # Implementing K-Means
-        ret, label, center = cv2.kmeans(data, 9, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        center = np.uint8(center)
-        result = center[label.flatten()]
-        result = result.reshape(img.shape)
+            # Determine criteria
+            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
 
-        blurred = cv2.bilateralFilter(result, d=7,
-                                      sigmaColor=200, sigmaSpace=200)
+            # Implementing K-Means
+            ret, label, center = cv2.kmeans(data, 9, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+            center = np.uint8(center)
+            result = center[label.flatten()]
+            result = result.reshape(img.shape)
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray_blur = cv2.medianBlur(gray, 7)
-        edges = cv2.adaptiveThreshold(gray_blur, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 7,
-                                      7)
+            blurred = cv2.bilateralFilter(result, d=7,
+                                          sigmaColor=200, sigmaSpace=200)
 
-        cartoon = cv2.bitwise_and(blurred, blurred, mask=edges)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            gray_blur = cv2.medianBlur(gray, 7)
+            edges = cv2.adaptiveThreshold(gray_blur, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 7,
+                                          7)
 
-        t1,dst1 = cv2.threshold(cartoon, 127, 255, cv2.THRESH_BINARY)
-        self.set_img_to_label(dst1, "label2")
+            cartoon = cv2.bitwise_and(blurred, blurred, mask=edges)
+
+            t1,dst1 = cv2.threshold(cartoon, 127, 255, cv2.THRESH_BINARY)
+            self.set_img_to_label(dst1, "label2")
+        else:
+            self.wrong_msg_box("Empty image", "Please upload image first!")
 
     # Function to set images to its labels
     def set_img_to_label(self, inputImg, labelName):
@@ -286,15 +303,13 @@ class Ui_MainWindow(object):
 
     # Function to save the output image at local
     def saveImage(self):
-        global resultImage
-        try:
-            # Once user choose the dir path, save it
-            self.dir_path = QFileDialog.getExistingDirectory(None, "Choose path", os.getcwd())
 
-            # Save the output image based on the path that user choosed
-            cv2.imwrite(os.path.join(self.dir_path, 'result.jpg'), resultImage)
-        except Exception as e:
-            print(e)
+        # Once user choose the dir path, save it
+        self.dir_path = QFileDialog.getExistingDirectory(None, "Choose path", os.getcwd())
+
+        # Save the output image based on the path that user choosed
+        cv2.imwrite(os.path.join(self.dir_path, 'result.jpg'), resultImage)
+
 
     def on_mouse(self, event, x, y, flags, param):
         global pt1, pt2, resultImage
@@ -319,13 +334,20 @@ class Ui_MainWindow(object):
             self.saveImage()
 
     def image_crop(self):
-        # Get the original image
+
         originalImage = self.get_original_image()
-        # Set mouse click window
+        cv2.namedWindow('image')
         cv2.setMouseCallback('image', self.on_mouse)
-        # Show image
         cv2.imshow('image', originalImage)
         cv2.waitKey(0)
+
+    def empty_image(self):
+        if self.get_original_image() is null:
+            return True
+    def wrong_msg_box(self, title, body):
+        QMessageBox.information(self, title, body, QMessageBox.Ok)
+
+
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
