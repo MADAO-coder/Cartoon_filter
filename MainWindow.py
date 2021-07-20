@@ -23,65 +23,91 @@ from PyQt5.QtCore import *
 
 fileName = ''
 rotation_angle = ''
-resultImage = null
+resultImage = np.zeros((100,100,3), dtype=np.uint8)
 
 
+# Class for GUI
 class Ui_MainWindow(object):
+
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1090, 871)
+        MainWindow.resize(1890, 871)
+
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
+
 
         self.setWindowTitle("label show image")
         self.setWindowIcon(QIcon('1.jpg'))
 
+        # Set up the label for image1, default width is 300, height is 400
         self.label = QLabel(self)
         self.label.setText("   show original image")
         self.label.setFixedSize(300, 400)
         self.label.move(200, 30)
-
         self.label.setStyleSheet("QLabel{background:white;}"
                                  "QLabel{color:rgb(300,300,300,120);font-size:20px;font-weight:bold;font-family:宋体;}"
                                  )
 
+        # Set up the label for image2, default width is 300, height is 400
         self.label2 = QLabel(self)
         self.label2.setText("   show image after filtering")
         self.label2.setFixedSize(300, 400)
         self.label2.move(550, 30)
-
         self.label2.setStyleSheet("QLabel{background:white;}"
                                   "QLabel{color:rgb(300,300,300,120);font-size:20px;font-weight:bold;font-family:宋体;}"
                                   )
 
 
+        # Set up button1 for open images
         self.pushButton = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton.setGeometry(QtCore.QRect(0, 30, 120, 60))
         self.pushButton.setObjectName("pushButton")
-
         self.pushButton.clicked.connect(self.openimage)
 
+        # Set up button2 for rotate images
         self.pushButton_2 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_2.setGeometry(QtCore.QRect(0, 140, 120, 60))
         self.pushButton_2.setObjectName("pushButton_2")
         self.pushButton_2.clicked.connect(self.getRotationAngle)
 
+        # Set up button3 for scaling images
         self.pushButton_3 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_3.setGeometry(QtCore.QRect(0, 260, 120, 60))
         self.pushButton_3.setObjectName("pushButton_3")
         self.pushButton_3.clicked.connect(self.getScalingInput)
 
-
+        # Set up button4 for implementing cartoon filter
         self.pushButton_4 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_4.setGeometry(QtCore.QRect(0, 380, 120, 60))
         self.pushButton_4.setObjectName("pushButton_4")
         self.pushButton_4.clicked.connect(self.saveImage)
 
+        # Set up button for saving the output image
         self.pushButton_5 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_5.setGeometry(QtCore.QRect(0, 490, 121, 60))
+        self.pushButton_5.setGeometry(QtCore.QRect(0, 490, 120, 60))
         self.pushButton_5.setObjectName("pushButton_5")
         self.pushButton_5.clicked.connect(self.CartoonFilter)
 
+
+        self.pushButton_cropLeft = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_cropLeft.setGeometry(QtCore.QRect(200, 720, 120, 60))
+        self.pushButton_cropLeft.setObjectName("crop left")
+
+        self.pushButton_cropRight = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_cropRight.setGeometry(QtCore.QRect(380, 720, 120, 60))
+        self.pushButton_cropRight.setObjectName("crop right")
+
+        self.pushButton_cropUp = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_cropUp.setGeometry(QtCore.QRect(560, 720, 120, 60))
+        self.pushButton_cropUp.setObjectName("crop up")
+
+        self.pushButton_cropDown = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_cropDown.setGeometry(QtCore.QRect(740, 720, 120, 60))
+        self.pushButton_cropDown.setObjectName("crop down")
+
+        # Initialize the main window for GUI
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1090, 26))
@@ -94,97 +120,106 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+    # Function to name the buttons
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.pushButton.setText(_translate("MainWindow", "Open image"))
         self.pushButton_2.setText(_translate("MainWindow", "Rotation"))
         self.pushButton_3.setText(_translate("MainWindow", "Scaling"))
-        self.pushButton_4.setText(_translate("MainWindow", "PushButton"))
-        self.pushButton_5.setText(_translate("MainWindow", "PushButton"))
+        self.pushButton_4.setText(_translate("MainWindow", "Save image"))
+        self.pushButton_5.setText(_translate("MainWindow", "Cartoon filter"))
+        self.pushButton_cropLeft.setText(_translate("MainWindow", "crop left"))
+        self.pushButton_cropRight.setText(_translate("MainWindow", "crop right"))
+        self.pushButton_cropUp.setText(_translate("MainWindow", "crop up"))
+        self.pushButton_cropDown.setText(_translate("MainWindow", "crop down"))
 
-
-    def openRotationWindow(self):
-        import RotationWindow2
-        self.rotationWindow = RotationWindow2.Ui_MainWindow()
-
+    # Function get the input of rotation angle
     def getRotationAngle(self):
         global rotation_angle
         global fileName
-        img_before_rotation = cv2.imread(fileName)
-        rotation_angle_input, ok = QInputDialog.getText(self, "yes", "No",
-                                                        QtWidgets.QLineEdit.Normal)
 
+        # Create a input box and user can choose their input angle
+        rotation_angle_input, ok = QInputDialog.getText(self, "Rotation", "Please input angle you want to rotate (such as 30)",
+                                                       QtWidgets.QLineEdit.Normal)
+        # If users click ok, perform rotation based on their input angle
         if ok:
             rotation_angle = rotation_angle_input
             self.rotation()
-
+    # Function to perform rotation
     def rotation(self):
-        global fileName
         global rotation_angle
         global resultImage
 
-        print(rotation_angle)
-
+        # change the rotation_angle from input to string
         rotation_angle = int (rotation_angle)
 
-        img_before_rotation = cv2.imread(fileName)
-        h, w = img_before_rotation.shape[:2]
+        # if the input angle between 0 to 360, perform rotation
+        if rotation_angle > 0 and rotation_angle<360:
 
-        M = cv2.getRotationMatrix2D((w / 2, h / 2), rotation_angle, 1)
+            # Read the original image by reading fileName
+            img_before_rotation = self.get_original_image()
 
-        dst = cv2.warpAffine(img_before_rotation, M, (w, h))
-        print(dst)
+            h, w = img_before_rotation.shape[:2] # Find height and width of the original image
+            M = cv2.getRotationMatrix2D((w / 2, h / 2), rotation_angle, 1) # Find the center position of original image
+            dst = cv2.warpAffine(img_before_rotation, M, (w, h)) # Use wrapAffine function achieve image after rotation
 
-        size = (int(self.label2.width()), int(self.label2.height()))
+            # Reset the label2's size to make it to default
+            self.reset_label2_size()
+            # Set the output image at label2
+            self.set_img_to_label(dst, "label2")
+        else:
+            print("Please input rotation angle between 0 and 360")
 
-        shrink = cv2.resize(dst, size, interpolation=cv2.INTER_AREA)
-        shrink = cv2.cvtColor(shrink, cv2.COLOR_BGR2RGB)
-        self.QtImg = QtGui.QImage(shrink.data,
-                                  shrink.shape[1],
-                                  shrink.shape[0],
-                                  QtGui.QImage.Format_RGB888)
-        self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
-
+    # Function to open the local image
     def openimage(self):
         global fileName
         QMessageBox.question(self, 'Remind', 'Please choose one image from your computer',
                              QMessageBox.Ok)
+        # Get the image's name and image's type
         imgName, imgType = QFileDialog.getOpenFileName(self, "image.jpg", os.getcwd())
-        jpg = QtGui.QPixmap(imgName).scaled(self.label.width(), self.label.height())
-        self.label.setPixmap(QPixmap(jpg))
-        self.label2.setPixmap(QPixmap(jpg))
+
+        # Read the original image based on file location
+        originalImage = QtGui.QPixmap(imgName).scaled(self.label.width(), self.label.height())
+
+        # Set up original image at label1 and label2 as begin
+        self.label.setPixmap(QPixmap(originalImage))
+        self.label2.setPixmap(QPixmap(originalImage))
         fileName = imgName
-        originalImage = cv2.imread(imgName)
 
+    # Function to implement scaling to original image
     def getScalingInput(self):
-        global fileName
-        img_before_scaling = cv2.imread(fileName, 1)
 
+        # Get the original image
+        img_before_scaling = self.get_original_image()
+
+        # Use resize function to make the original image fill the label size
         img_before_scaling = cv2.resize(img_before_scaling, (300, 400), interpolation=cv2.INTER_CUBIC)
+        # Convert image to RGB
         img_before_scaling = cv2.cvtColor(img_before_scaling, cv2.COLOR_BGR2RGB)
 
-        scaling_size_input, ok = QInputDialog.getText(self, "yes", "No",
-                                                       QtWidgets.QLineEdit.Normal)
-        scaling_size_input = float(scaling_size_input)
+        # Retrieve users' input
+        scaling_size_input, ok = QInputDialog.getText(self, "Scaling", "Please input scaling multiples you want (2 is double image)",
+                                                     QtWidgets.QLineEdit.Normal)
 
-        dst_scaling = cv2.resize(img_before_scaling, None, fx= scaling_size_input, fy= scaling_size_input, interpolation=cv2.INTER_CUBIC)
-        width =dst_scaling.shape[1]
-        height = dst_scaling.shape[0]
-        print(width, height)
+        # Once users click ok, image will be scaled based on users input, for example 2 means double the image
+        if ok:
+            scaling_size_input = float(scaling_size_input)
+            dst_scaling = cv2.resize(img_before_scaling, None, fx= scaling_size_input, fy= scaling_size_input, interpolation=cv2.INTER_CUBIC)
+            self.set_img_to_label(dst_scaling, "scaling")
 
-        self.label2.setFixedSize(width, height)
-        size = (int(self.label2.width()), int(self.label2.height()))
-        print(size)
+    # Function to retrieve the original image based on file name
+    def get_original_image(self):
+        global fileName
+        return cv2.imread(fileName, 1) # Return original image
 
-        self.QtImg = QtGui.QImage(dst_scaling.data,
-                                  dst_scaling.shape[1],
-                                  dst_scaling.shape[0],
-                                  QImage.Format_RGB888)
-        self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+    # Function to make the label2's size reset to default
+    def reset_label2_size(self):
+        self.label2.setFixedSize(300, 400)
 
+    # Function to implement cartoon filter
     def CartoonFilter(self):
-
+        global resultImage
         global fileName
         img = cv2.imread(fileName)
         data = np.float32(img).reshape((-1, 3))
@@ -209,23 +244,75 @@ class Ui_MainWindow(object):
         cartoon = cv2.bitwise_and(blurred, blurred, mask=edges)
 
         t1,dst1 = cv2.threshold(cartoon, 127, 255, cv2.THRESH_BINARY)
+        self.set_img_to_label(dst1, "label2")
 
+    # Function to set images to its labels
+    def set_img_to_label(self, inputImg, labelName):
 
+        # Get the size of label2
         size = (int(self.label2.width()), int(self.label2.height()))
-        shrink = cv2.resize(dst1, size, interpolation=cv2.INTER_AREA)
+
+        # resize the image to make it same as the label size
+        shrink = cv2.resize(inputImg, size, interpolation=cv2.INTER_AREA)
+        # Change image to RGB
         shrink = cv2.cvtColor(shrink, cv2.COLOR_BGR2RGB)
+
+        # Switch cv2 image to QtImg, which can be showing in GUI
         self.QtImg = QtGui.QImage(shrink.data,
                                   shrink.shape[1],
                                   shrink.shape[0],
                                   QtGui.QImage.Format_RGB888)
-        self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+        # Show image on label2
+        if labelName is "label2":
+            self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+        # Show image on label1
+        if labelName is "label1":
+            self.label.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+        # Show image if perform scaling, since scaling will change the size of label
+        if labelName is "scaling":
+            self.QtImg = QtGui.QImage(inputImg.data,
+                                      inputImg.shape[1],
+                                      inputImg.shape[0],
+                                      QtGui.QImage.Format_RGB888)
+            # Get the width and height of image
+            width = inputImg.shape[1]
+            height = inputImg.shape[0]
 
+            # reset the size of label2
+            self.label2.setFixedSize(width, height)
+            # show the image at label2
+            self.label2.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+
+
+    def imageCut(self):
+        global fileName
+        img_before_cut = cv2.imread(fileName, 1)
+        row = len(img_before_cut)
+        col = len(img_before_cut[0])
+        matrix_down = np.float32([[1, 0, 0], [0, 1, -50]])
+
+    def switchImage(self):
+        global resultImage
+        global fileName
+
+        originalImage = cv2.imread(fileName, 1)
+        print(originalImage)
+
+        self.QtImg = QtGui.QImage(resultImage.data,
+                                  resultImage.shape[1],
+                                  resultImage.shape[0],
+                                  QtGui.QImage.Format_RGB888)
+        self.label.setPixmap(QtGui.QPixmap.fromImage(self.QtImg))
+
+    # Function to save the output image at local
     def saveImage(self):
         global resultImage
         try:
+            # Once user choose the dir path, save it
             self.dir_path = QFileDialog.getExistingDirectory(None, "Choose path", os.getcwd())
-            print(resultImage)
-            cv2.imwrite(self.dir_path, resultImage)
+
+            # Save the output image based on the path that user choosed
+            cv2.imwrite(os.path.join(self.dir_path, 'result.jpg'), resultImage)
         except Exception as e:
             print(e)
 
